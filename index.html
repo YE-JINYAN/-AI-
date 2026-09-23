@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>NEOX AI · 视频工作流</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div id="app">
+    <div id="viewport">
+      <div class="vignette"></div>
+      <svg id="edges" aria-hidden="true">
+        <defs>
+          <filter id="lineGlow" x="-40%" y="-40%" width="180%" height="180%">
+            <feGaussianBlur stdDeviation="3.2" result="blur" />
+            <feMerge>
+              <feMergeNode in="blur" />
+              <feMergeNode in="SourceGraphic" />
+            </feMerge>
+          </filter>
+        </defs>
+        <g id="edgeGroup"></g>
+      </svg>
+      <div id="world"></div>
+      <div id="emptyHint" hidden>
+        <div class="empty-card">
+          <h2>画布是空的</h2>
+          <p>点击底部「＋」添加节点，或恢复一套可以直接运行的演示流程。</p>
+          <button type="button" class="btn primary" data-action="restore">恢复演示流程</button>
+        </div>
+      </div>
+    </div>
+
+    <header class="topbar">
+      <div class="cluster">
+        <div class="brand" title="NEOX AI">
+          <svg viewBox="0 0 32 32" class="logo" aria-hidden="true">
+            <defs>
+              <linearGradient id="logoGrad" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0" stop-color="#00D7FF" />
+                <stop offset="1" stop-color="#3A73FF" />
+              </linearGradient>
+            </defs>
+            <rect width="32" height="32" rx="9" fill="url(#logoGrad)" />
+            <path d="M9 23V9h3.1l3.9 8.2L19.9 9H23v14h-2.6v-8.7l-3.6 7.4h-1.6l-3.6-7.4V23H9z" fill="#fff" />
+          </svg>
+          <span>NEOX AI</span>
+        </div>
+        <button type="button" id="projectBtn" class="pill menu-btn">项目一</button>
+        <button type="button" id="canvasBtn" class="pill menu-btn">画布 1</button>
+      </div>
+      <div class="cluster">
+        <div class="pill points">
+          <svg viewBox="0 0 24 24" class="mini" aria-hidden="true"><path d="M13 2L4 14h7l-1 8 10-14h-7l0-6z" /></svg>
+          <span>梦想积分</span>
+          <b id="points">1,422</b>
+        </div>
+        <div class="pill save" id="savePill">
+          <span class="dot" id="saveDot"></span>
+          <span id="saveLabel">已保存</span>
+        </div>
+        <button type="button" class="btn ghost sm" id="saveBtn" data-action="save-canvas">保存</button>
+        <button type="button" class="btn primary sm" data-action="share">
+          <svg viewBox="0 0 24 24" class="mini" aria-hidden="true"><path d="M12 3v10M8 7l4-4 4 4M5 14v5h14v-5" /></svg>
+          分享
+        </button>
+        <button type="button" id="accountBtn" class="account-btn" title="账户管理" aria-label="账户管理">
+          <img id="avatarImg" alt="" hidden />
+          <span id="avatarFallback">演</span>
+        </button>
+      </div>
+    </header>
+    <div id="accountMenu" class="account-menu" hidden></div>
+
+    <div id="projectMenu" class="menu" hidden></div>
+    <div id="canvasMenu" class="menu" hidden></div>
+    <div id="addMenu" class="popover" hidden></div>
+
+    <footer class="bottombar">
+      <div class="cluster left-tools">
+        <button type="button" class="pill" data-action="assets">
+          <svg viewBox="0 0 24 24" class="mini" aria-hidden="true"><path d="M4 7h6l2 2h8v9H4z" /><path d="M4 7V5h5l2 2" /></svg>
+          素材管理
+        </button>
+        <div class="pill zoom">
+          <button type="button" data-action="zoom-out" title="缩小" aria-label="缩小">−</button>
+          <span id="zoomLabel">100%</span>
+          <button type="button" data-action="zoom-in" title="放大" aria-label="放大">+</button>
+        </div>
+        <button type="button" class="pill" data-action="fit">
+          <svg viewBox="0 0 24 24" class="mini" aria-hidden="true"><path d="M9 4H4v5M15 4h5v5M9 20H4v-5M15 20h5v-5" /></svg>
+          适应画布
+        </button>
+      </div>
+      <div class="dock">
+        <button type="button" id="btnAdd" class="add-btn" data-action="add-menu" title="添加节点" aria-label="添加节点">+</button>
+        <button type="button" id="toolSelect" class="tool active" data-action="tool-select" title="选择工具">
+          <svg viewBox="0 0 24 24" class="mini"><path d="M5 3l7 18 2.2-7.2L21 11z" /></svg>
+        </button>
+        <button type="button" id="toolConnect" class="tool" data-action="tool-connect" title="连线工具">
+          <svg viewBox="0 0 24 24" class="mini"><path d="M7 7h.01M17 17h.01M7 17C7 11 11 7 17 7" /></svg>
+        </button>
+        <span class="sep"></span>
+        <button type="button" id="undoBtn" class="tool" data-action="undo" title="撤销" disabled>
+          <svg viewBox="0 0 24 24" class="mini"><path d="M8 8L4 12l4 4" /><path d="M4 12h10a6 6 0 1 1 0 12" transform="translate(0 -6)" /></svg>
+        </button>
+        <button type="button" id="redoBtn" class="tool" data-action="redo" title="重做" disabled>
+          <svg viewBox="0 0 24 24" class="mini"><path d="M16 8l4 4-4 4" /><path d="M20 12H10a6 6 0 1 0 0 12" transform="translate(0 -6)" /></svg>
+        </button>
+        <span class="sep"></span>
+        <button type="button" class="tool" data-action="shortcuts" title="快捷键">
+          <svg viewBox="0 0 24 24" class="mini"><rect x="3" y="6" width="18" height="12" rx="2" /><path d="M7 10h.01M11 10h.01M15 10h.01M7 14h10" /></svg>
+        </button>
+        <button type="button" class="tool" data-action="help" title="帮助">
+          <svg viewBox="0 0 24 24" class="mini"><circle cx="12" cy="12" r="8" /><path d="M9.5 9a2.5 2.5 0 1 1 3.6 2.2c-.7.4-1.1.9-1.1 1.8V14" /><path d="M12 17h.01" /></svg>
+        </button>
+      </div>
+    </footer>
+
+    <aside id="assetPanel" class="drawer left" hidden>
+      <div class="drawer-hd">
+        <h2>素材管理</h2>
+        <button type="button" class="icon-btn" data-action="close-assets" aria-label="关闭">×</button>
+      </div>
+      <div id="assetList" class="drawer-bd"></div>
+      <div class="drawer-ft">
+        <button type="button" class="btn ghost" data-action="clear">清空画布</button>
+        <button type="button" class="btn primary" data-action="restore">恢复演示流程</button>
+      </div>
+    </aside>
+
+    <aside id="detailPanel" class="drawer right" hidden>
+      <div class="drawer-hd">
+        <h2>识别详情</h2>
+        <button type="button" class="icon-btn" data-action="close-details" aria-label="关闭">×</button>
+      </div>
+      <div id="detailBody" class="drawer-bd"></div>
+    </aside>
+
+    <div id="tour" class="tour" hidden>
+      <div class="tour-top">
+        <b id="tourTitle">添加第一个节点</b>
+        <span id="tourStep">1 / 4</span>
+      </div>
+      <p id="tourText">点击 +，选择你需要的工具</p>
+      <div class="tour-actions">
+        <button type="button" class="btn ghost sm" data-action="tour-skip">跳过</button>
+        <button type="button" class="btn primary sm" data-action="tour-next">下一步</button>
+      </div>
+    </div>
+
+    <button type="button" id="edgeDelete" class="edge-delete" hidden>删除连线</button>
+
+    <section id="library" class="library" hidden>
+      <header class="library-top">
+        <button type="button" class="btn ghost sm" data-action="close-library">← 返回画布</button>
+        <div class="library-brand">
+          <svg viewBox="0 0 32 32" class="logo" aria-hidden="true">
+            <rect width="32" height="32" rx="9" fill="#3A73FF" />
+            <path d="M9 23V9h3.1l3.9 8.2L19.9 9H23v14h-2.6v-8.7l-3.6 7.4h-1.6l-3.6-7.4V23H9z" fill="#fff" />
+          </svg>
+          <span>NEOX AI</span>
+          <i></i>
+          <b>NEOX素材库</b>
+        </div>
+        <div class="library-tools">
+          <label class="library-switch">
+            <input id="libraryLicensed" type="checkbox" />
+            <span>仅显示已授权素材</span>
+          </label>
+          <button type="button" id="libraryMineBtn" class="btn ghost sm" data-action="library-mine">我的素材</button>
+        </div>
+      </header>
+      <div class="library-frame">
+        <label class="library-search">
+          <svg viewBox="0 0 24 24" class="mini" aria-hidden="true"><circle cx="11" cy="11" r="6" /><path d="M16 16l4 4" /></svg>
+          <input id="librarySearch" type="search" placeholder="搜索人物、场景、动作或特效" autocomplete="off" />
+        </label>
+        <div class="library-columns">
+          <nav id="libraryNav" class="library-nav" aria-label="素材分类"></nav>
+          <div class="library-main">
+            <h2 id="libraryHeading">NEOX精选素材</h2>
+            <p id="libraryNote" class="library-note" hidden></p>
+            <div id="libraryGrid" class="library-grid"></div>
+            <div id="libraryCanvas" class="library-canvas"></div>
+          </div>
+          <aside id="libraryPreview" class="library-preview"></aside>
+        </div>
+      </div>
+    </section>
+
+    <section id="shotLibrary" class="library shot-library" hidden>
+      <header class="library-top">
+        <button type="button" class="btn ghost sm" data-action="close-shots">← 返回画布</button>
+        <div class="library-brand">
+          <span>NEOX AI</span>
+          <i></i>
+          <b>镜头选择</b>
+        </div>
+        <div class="shot-tabs" role="tablist">
+          <button type="button" id="shotTabPreset" data-action="shot-tab" data-tab="preset">参考镜头</button>
+          <button type="button" id="shotTabFree" data-action="shot-tab" data-tab="free">自由设置</button>
+          <button type="button" id="shotTabMine" data-action="shot-tab" data-tab="mine">我的镜头</button>
+        </div>
+      </header>
+      <div class="library-frame shot-work">
+        <aside class="shot-side">
+          <label class="library-search" id="shotSearchWrap">
+            <svg viewBox="0 0 24 24" class="mini" aria-hidden="true"><circle cx="11" cy="11" r="6" /><path d="M16 16l4 4" /></svg>
+            <input id="shotSearch" type="search" placeholder="搜索镜头名称或说明" autocomplete="off" />
+          </label>
+          <div id="shotSide"></div>
+        </aside>
+        <div id="shotPreview" class="shot-preview"></div>
+        <div id="shotForm" class="shot-form"></div>
+      </div>
+    </section>
+
+    <section id="lightStudio" class="library light-studio" hidden>
+      <header class="library-top">
+        <button type="button" class="btn ghost sm" data-action="close-lights">← 返回画布</button>
+        <div class="library-brand">
+          <span>NEOX AI</span>
+          <i></i>
+          <b>专业光影台</b>
+        </div>
+        <div class="shot-tabs" role="tablist">
+          <button type="button" id="lightTabRef" data-action="light-tab" data-tab="ref">参考光影</button>
+          <button type="button" id="lightTabFree" data-action="light-tab" data-tab="free">自由布光</button>
+          <button type="button" id="lightTabMine" data-action="light-tab" data-tab="mine">我的光影</button>
+        </div>
+      </header>
+      <div class="library-frame light-work">
+        <aside class="light-side"><div id="lightSide"></div></aside>
+        <div id="lightPreview" class="light-preview"></div>
+        <div id="lightForm" class="light-form"></div>
+      </div>
+      <footer class="light-bar">
+        <button type="button" class="btn ghost" id="lightCompareBtn" data-action="light-compare">调整前后对比</button>
+        <button type="button" class="btn ghost" data-action="light-save">保存到我的光影</button>
+        <button type="button" class="btn ghost" data-action="light-copy">复制到其他镜头</button>
+        <button type="button" class="btn primary" data-action="light-apply">应用到当前镜头</button>
+      </footer>
+    </section>
+
+    <section id="storyStudio" class="library story-studio" hidden>
+      <header class="library-top">
+        <button type="button" class="btn ghost sm" data-action="close-story">← 返回画布</button>
+        <div class="library-brand">
+          <span>NEOX AI</span>
+          <i></i>
+          <b>小说故事构思</b>
+        </div>
+        <div class="shot-tabs story-templates" role="tablist">
+          <button type="button" data-action="story-template" data-template="blank">从空白开始</button>
+          <button type="button" data-action="story-template" data-template="suspense">悬疑</button>
+          <button type="button" data-action="story-template" data-template="fantasy">奇幻</button>
+          <button type="button" data-action="story-template" data-template="city">都市情感</button>
+        </div>
+      </header>
+      <p id="storyLead" class="story-lead"></p>
+      <div id="storyLayout" class="story-layout">
+        <div id="storyForm" class="story-form"></div>
+        <aside id="storyPreview" class="story-preview" hidden>
+          <h3>故事梗概</h3>
+          <p class="muted">这段文字是按你填的人物、场景和物品整理出来的示例说明，不是 AI 生成，也不会扣积分。</p>
+          <textarea id="storySynopsis" readonly aria-label="故事梗概"></textarea>
+          <button type="button" class="btn ghost" data-action="story-copy">复制梗概</button>
+        </aside>
+      </div>
+      <footer class="light-bar">
+        <button type="button" class="btn ghost" data-action="story-preview">预览故事梗概</button>
+        <button type="button" class="btn primary" data-action="story-split">拆成画布节点</button>
+      </footer>
+    </section>
+
+    <div id="modal" class="modal" hidden></div>
+    <div id="toast" class="toast" hidden></div>
+    <input id="fileInput" type="file" hidden />
+    <input id="avatarInput" type="file" accept="image/*" hidden />
+    <input id="libraryFile" type="file" accept="image/*" hidden />
+  </div>
+  <script src="script.js"></script>
+</body>
+</html>
